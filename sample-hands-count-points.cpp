@@ -3,6 +3,10 @@
  */
 
 #include <iostream>
+#include <iterator>
+#include <fstream>
+
+static std::string filepath = "/Users/alexstringer/phd/projects/learn-cpp/cribbage/score-run.csv";
 
 // Define all the possible cards
 static char values[13] = {'A','2','3','4','5','6','7','8','9','0','J','Q','K'};
@@ -150,6 +154,36 @@ public:
       return 0;
     }
   }
+  
+  // Method to test if supplied card is immediately greater than current card,
+  // i.e. if current card is adjacent to and less than other card
+  bool adjacent_and_less_than(Card other_card) {
+    if (other_card.int_value() == int_value() + 1) {
+      return true;
+    }
+    switch(other_card.value) {
+    case 'J':
+      if (value == '0') {
+        return true;
+      }
+      else {
+        return false;
+      }
+      break;
+    case 'Q':
+      if (value == 'K') {
+        return true;
+      }
+      else {
+        return false;
+      }
+      break;
+    case 'K':
+      return false;
+      break;
+    default: return false;
+    }
+  }
 };
 
 // Class to represent a hand
@@ -251,7 +285,7 @@ public:
   }
   
   // Method for sorting an array of cards
-  void swap(Card *xp, Card *yp) 
+  static void swap(Card *xp, Card *yp) 
   { 
     Card temp = *xp; 
     *xp = *yp; 
@@ -268,11 +302,11 @@ public:
     return true;
   }
   
-  void bubble_sort() {
+  static void bubble_sort(Card cards[],int n = 4) {
     bool sorted = false, madeswap = false;
     int i;
     while (!sorted) {
-      for (i=0;i<3;i++) {
+      for (i=0;i<(n-1);i++) {
         if (cards[i].order_by_value(cards[i+1]) == 1) {
           // Swap them
           swap(&cards[i],&cards[i+1]);
@@ -349,9 +383,81 @@ public:
     }
     
     // Runs
-    bubble_sort();
+    // Create a new array of cards containing the top card
+    Card allcards[5];
+    for (i=0;i<4;i++) {
+      allcards[i] = cards[i];
+    }
+    allcards[4] = topcard;
+    bubble_sort(allcards,5);
+    // Now find sequences
+    // Just do it manually; there are too many special cases and we need to avoid double counting
+    if (allcards[0].adjacent_and_less_than(allcards[1])) {
+      if (allcards[1].adjacent_and_less_than(allcards[2])) {
+        // Now we have a sequence of 3. Check for 4, or 5
+        if (allcards[2].adjacent_and_less_than(allcards[3])) {
+          // Now it's a sequence of 4...
+          if (allcards[3].adjacent_and_less_than(allcards[4])) {
+            score+=5;
+          }
+          else {
+            score+=4;
+          }
+        }
+        else {
+          score+=3;
+        }
+      }
+    }
+    // Now check the sequences that do not include card 1
+    // Make sure not to double count though, so first check that card[0] is NOT
+    // in a sequence with card[1]
+    if (!allcards[0].adjacent_and_less_than(allcards[1])) {
+      if (allcards[1].adjacent_and_less_than(allcards[2])) {
+        if (allcards[2].adjacent_and_less_than(allcards[3])) {
+          // Now it's a sequence of 3...
+          if (allcards[3].adjacent_and_less_than(allcards[4])) {
+            score+=4;
+          }
+          else {
+            score+=3;
+          }
+        }
+      }
+    }
+    // Last possibility is a sequence of 3 formed by hte last 3 cards
+    if (!allcards[0].adjacent_and_less_than(allcards[1])) {
+      if (!allcards[1].adjacent_and_less_than(allcards[2])) {
+        if (allcards[2].adjacent_and_less_than(allcards[3])) {
+          if (allcards[3].adjacent_and_less_than(allcards[4])) {
+            score+=3;
+          }
+        }
+      }
+    }
     
+    // Flushes
+    if ( (cards[0].suit == cards[1].suit) &
+         (cards[0].suit == cards[2].suit) &
+         (cards[0].suit == cards[3].suit) ) {
+      // If the four cards in the hand are the same suit, check if the top card
+      // is also the same suit. If yes, 5 points, if no, then 4
+      if (cards[0].suit == topcard.suit) {
+        score+=5;
+      }
+      else {
+        score+=4;
+      }
+    }
     
+    // Finally, "Nobs"- check if hand has a jack of the same suit as the top card
+    for (i=0;i<4;i++) {
+      if (cards[i].value == 'J') {
+        if (cards[i].suit == topcard.suit) {
+          score++;
+        }
+      }
+    }
     
     return score;
   }
@@ -363,30 +469,28 @@ int main() {
   // Set the random seed
   srand(time(NULL));
   
-  // Get a random hand
-  Hand thehand;
-  thehand.print();
-  thehand.bubble_sort();
-  thehand.print();
-  if (thehand.is_sorted()) {
-    std::cout << "Now the hand is sorted.\n";
-  }
+  // Open the output file
+  std::ofstream outputfile;
+  outputfile.open(filepath);
+  outputfile << "score\n";
   
-  // Generate the top of deck card
-  Card topcard;
-  topcard = Hand::random_card();
-  while(thehand.in_hand(topcard)) {
+  // Generate and count a bunch of hands
+  int i, n = 1000000;
+  
+  for (i=0;i<n;i++) {
+    // Get a random hand
+    Hand thehand;
+    
+    // Generate the top of deck card
+    Card topcard;
     topcard = Hand::random_card();
+    while(thehand.in_hand(topcard)) {
+      topcard = Hand::random_card();
+    }
+    
+    // Count the hand
+    outputfile << thehand.count(topcard) << "\n";
   }
-  
-  // Count the hand
-  std::cout << "Top card: ";
-  topcard.print();
-  std::cout << "\n";
-  std::cout << thehand.count(topcard) << "\n";
-  
   
 
-  
-  
 }

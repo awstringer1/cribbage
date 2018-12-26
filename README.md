@@ -17,6 +17,6 @@ If you've played cribbage, you might notice a couple things about this plot. Fir
 
 The problem is in an actual cribbage game we don't deal 4 cards- we deal 6 cards, and then (attempt to) pick the best sub hand out of these, without looking at the starter. Coding this functionality into the game and re-running the simulation gives the following:
 
-![Cribbage Scores, 1,000,000 hands, drawing best 4-card sub-hand from 6 drawn cards](https::/github.com/awstringer1/cribbage/blob/master/score-run-best-subhand-plot.png)
+![Cribbage Scores, 1,000,000 hands, drawing best 4-card sub-hand from 6 drawn cards](https://github.com/awstringer1/cribbage/blob/master/score-run-best-subhand-plot.png)
 
 This looks better- almost no zeroes, and an average score of 7.255, which corresponds to a 17-turn game on average (ignoring the max(player1,player2) thing, for now). This seems more realistic. 

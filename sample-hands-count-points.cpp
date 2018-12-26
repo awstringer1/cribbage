@@ -190,6 +190,14 @@ public:
 // Class to represent a hand
 // A hand is an array of four cards, with some associated member methods
 class Hand {
+private:
+  // Functions for counting hands, with and without the top card
+
+  
+  int count_no_topcard() {
+    return 0;
+  }
+
 public:
   Card cards[4];
   
@@ -319,7 +327,15 @@ public:
     }
   }
   
-  // Count the hand
+  // Count the hand. Two options: provide a top card, or don't.
+  // 
+  // Don't provide a top card: used in the dealing phase, where you get 6
+  // cards and need to decide 2 to discard. 
+  int count() {
+    return 0;
+  } 
+  
+  // Provide a top card:
   // Takes an argument, topcard, indicating the value of the card on top of the
   // deck. The reason for this is that in a given round of cribbage, we'll count
   // three hands, all using the same top card.
@@ -462,7 +478,6 @@ public:
     
     return score;
   }
-  
 };
 
 // Draw any number of cards, without replacement
@@ -497,7 +512,7 @@ std::vector<Card> draw_cards(int n) {
 }
 
 // Take a vector of six cards, return the Hand with the highest score
-/*
+
 Hand best_hand(std::vector<Card> cards) {
   int curscore, bestscore = 0;
   int i, j, k, l;
@@ -521,13 +536,13 @@ Hand best_hand(std::vector<Card> cards) {
   
   return besthand;
 }
-*/
+
 int main() {
   
   // Set the random seed
   srand(time(NULL));
   
-  /* Code for creating the standard drawing simulation
+  // Code for creating the standard drawing simulation
   // Open the output file
   std::ofstream outputfile;
   outputfile.open(filepath);
@@ -549,35 +564,6 @@ int main() {
     
     // Count the hand
     outputfile << thehand.count(topcard) << "\n";
-  }
-  */
-  
-  // See the highest hands
-  int highestscore = 0, currentscore = 0, n = 0;
-  while(true) {
-    n++;
-    // Get a random hand
-    Hand thehand;
-    
-    // Generate the top of deck card
-    Card topcard;
-    topcard = Hand::random_card();
-    while(thehand.in_hand(topcard)) {
-      topcard = Hand::random_card();
-    }
-    
-    // Score the hand
-    currentscore = thehand.count(topcard);
-    // If it's higher than the previous highest, overwrite and print
-    if (currentscore > highestscore) {
-      highestscore = currentscore;
-      std::cout << "New highest score is: " << highestscore << "\n";
-      thehand.print();
-      std::cout << "Top card: ";
-      topcard.print();
-      std::cout << "\n";
-      std::cout << "This occurred after " << n << " hands.\n";
-    }
   }
   
   

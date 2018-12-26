@@ -5,6 +5,7 @@
 #include <iostream>
 #include <iterator>
 #include <fstream>
+#include <vector>
 
 static std::string filepath = "/Users/alexstringer/phd/projects/learn-cpp/cribbage/score-run.csv";
 
@@ -464,11 +465,69 @@ public:
   
 };
 
+// Draw any number of cards, without replacement
+std::vector<Card> draw_cards(int n) {
+  if (n > 52) {
+    std::cout << "Can't draw " << n << " distinct cards from a 52 card deck!\n";
+    exit(1);
+  }
+  std::vector<Card> cards;
+  
+  // Randomly draw cards
+  int i, j;
+  for (i=0;i<n;i++) {
+    cards.push_back(Hand::random_card());
+  }
+  // Check if any are duplicate; remove duplicates
+  bool somethesame = true;
+  while(somethesame) {
+    somethesame = false;
+    // Check if any are the same
+    for (i=0;i<n;i++) {
+      for (j=i+1;j<n;j++) {
+        if (cards[i].compare(cards[j])) {
+          cards[j] = Hand::random_card();
+          somethesame = true;
+        }
+      }
+    }
+  }
+  
+  return cards;
+}
+
+// Take a vector of six cards, return the Hand with the highest score
+/*
+Hand best_hand(std::vector<Card> cards) {
+  int curscore, bestscore = 0;
+  int i, j, k, l;
+  int n = cards.size();
+  Hand curhand, besthand;
+  
+  for (i=0;i<n;i++) {
+    for (j=i+1;j<n;j++) {
+      for (k=j+1;k<n;k++) {
+        for (l=0;l<n;l++) {
+          curhand = Hand(cards[i],cards[j],cards[k],cards[l]);
+          curscore = curhand.count();
+          if (curscore > bestscore) {
+            bestscore = curscore;
+            besthand = curhand;
+          }
+        }
+      }
+    }
+  }
+  
+  return besthand;
+}
+*/
 int main() {
   
   // Set the random seed
   srand(time(NULL));
   
+  /* Code for creating the standard drawing simulation
   // Open the output file
   std::ofstream outputfile;
   outputfile.open(filepath);
@@ -491,6 +550,36 @@ int main() {
     // Count the hand
     outputfile << thehand.count(topcard) << "\n";
   }
+  */
+  
+  // See the highest hands
+  int highestscore = 0, currentscore = 0, n = 0;
+  while(true) {
+    n++;
+    // Get a random hand
+    Hand thehand;
+    
+    // Generate the top of deck card
+    Card topcard;
+    topcard = Hand::random_card();
+    while(thehand.in_hand(topcard)) {
+      topcard = Hand::random_card();
+    }
+    
+    // Score the hand
+    currentscore = thehand.count(topcard);
+    // If it's higher than the previous highest, overwrite and print
+    if (currentscore > highestscore) {
+      highestscore = currentscore;
+      std::cout << "New highest score is: " << highestscore << "\n";
+      thehand.print();
+      std::cout << "Top card: ";
+      topcard.print();
+      std::cout << "\n";
+      std::cout << "This occurred after " << n << " hands.\n";
+    }
+  }
+  
   
 
 }

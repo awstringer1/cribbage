@@ -7,7 +7,7 @@
 #include <fstream>
 #include <vector>
 
-static std::string filepath = "/Users/alexstringer/phd/projects/learn-cpp/cribbage/score-run.csv";
+static std::string filepath = "/Users/alexstringer/phd/projects/learn-cpp/cribbage/score-run-best-subhand.csv";
 
 // Define all the possible cards
 static char values[13] = {'A','2','3','4','5','6','7','8','9','0','J','Q','K'};
@@ -331,9 +331,72 @@ public:
   // 
   // Don't provide a top card: used in the dealing phase, where you get 6
   // cards and need to decide 2 to discard. 
-  int count() {
-    return 0;
-  } 
+  int count()  {
+    int i, j, k, score=0;
+    // Pairs, and 2-card 15's
+    for(i=0;i<4;i++) {
+      for (j=i+1;j<4;j++) {
+        if (cards[i].value == cards[j].value) {
+          score+=2;
+        }
+        if (cards[i].int_value() + cards[j].int_value() == 15) {
+          score+=2;
+        }
+      }
+    }
+    
+    // 3 card 15's. Note triples count as two pairs so they are counted separately, above
+    // Do runs separately
+    for (i=0;i<4;i++) {
+      for (j=i+1;j<4;j++) {
+        for(k=j+1;k<4;k++) {
+          if (cards[i].int_value() + cards[j].int_value() + cards[k].int_value() == 15) {
+            score+=2;
+          }
+        }
+      }
+    }
+    
+    // Four card 15's
+    if (cards[0].int_value() + cards[1].int_value() + cards[2].int_value() + cards[3].int_value() == 15) {
+      score+=2;
+    }
+    
+    // Runs
+    bubble_sort(cards);
+    // Now find sequences
+    // Just do it manually; there are too many special cases and we need to avoid double counting
+    if (cards[0].adjacent_and_less_than(cards[1])) {
+      if (cards[1].adjacent_and_less_than(cards[2])) {
+        // Now we have a sequence of 3. Check for 4
+        if (cards[2].adjacent_and_less_than(cards[3])) {
+          score+=4;
+        }
+        else {
+          score+=3;
+        }
+      }
+    }
+    // Now check the sequences that do not include card 1
+    // Make sure not to double count though, so first check that card[0] is NOT
+    // in a sequence with card[1]
+    if (!cards[0].adjacent_and_less_than(cards[1])) {
+      if (cards[1].adjacent_and_less_than(cards[2])) {
+        if (cards[2].adjacent_and_less_than(cards[3])) {
+          score+=3;        
+        }
+      }
+    }
+    
+    // Flushes
+    if ( (cards[0].suit == cards[1].suit) &
+         (cards[0].suit == cards[2].suit) &
+         (cards[0].suit == cards[3].suit) ) {
+      score+=4;
+    }
+    
+    return score;
+  }
   
   // Provide a top card:
   // Takes an argument, topcard, indicating the value of the card on top of the
@@ -522,7 +585,7 @@ Hand best_hand(std::vector<Card> cards) {
   for (i=0;i<n;i++) {
     for (j=i+1;j<n;j++) {
       for (k=j+1;k<n;k++) {
-        for (l=0;l<n;l++) {
+        for (l=k+1;l<n;l++) {
           curhand = Hand(cards[i],cards[j],cards[k],cards[l]);
           curscore = curhand.count();
           if (curscore > bestscore) {
@@ -542,7 +605,7 @@ int main() {
   // Set the random seed
   srand(time(NULL));
   
-  // Code for creating the standard drawing simulation
+  /* Code for creating the standard drawing simulation
   // Open the output file
   std::ofstream outputfile;
   outputfile.open(filepath);
@@ -565,7 +628,30 @@ int main() {
     // Count the hand
     outputfile << thehand.count(topcard) << "\n";
   }
+  */
   
+  // Simulate the actual turn- draw 6 cards, take the best sub-hand, record its points
+  // Open the output file
+  std::ofstream outputfile;
+  outputfile.open(filepath);
+  outputfile << "score\n"; // Write the header
   
+  // Generate and count a bunch of hands
+  int i, n = 1000000;
+  
+  for (i=0;i<n;i++) {
+    // Get a vector of six cards
+    std::vector<Card> drawncards = draw_cards(6);
+    // Get the best hand
+    Hand besthand = best_hand(drawncards);
+    // Draw the top card
+    Card topcard;
+    topcard = Hand::random_card();
+    while(besthand.in_hand(topcard)) {
+      topcard = Hand::random_card();
+    }
+    // Write the score to the file
+    outputfile << besthand.count(topcard) << "\n";
+  }
 
 }

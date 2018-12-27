@@ -7,6 +7,7 @@ scores <- readr::read_csv(file = "/Users/alexstringer/phd/projects/learn-cpp/cri
 scores_besthand <- readr::read_csv(file = "/Users/alexstringer/phd/projects/learn-cpp/cribbage/score-run-best-subhand.csv")
 # Summary statistics
 summary(scores$score)
+summary(scores_besthand$score)
 
 # Histogram
 scores %>%

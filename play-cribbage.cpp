@@ -24,5 +24,11 @@ int main() {
   // Create the players
   Player player1, player2;
 
-  request_discard(draw_cards(6));
+  Hand thecrib = deal(&player1,&player2,false);
+  std::cout << "Player 1 hand: ";
+  player1.get_hand().print();
+  std::cout << "Player 2 hand: ";
+  player2.get_hand().print();
+  std::cout << "The crib: ";
+  thecrib.print();
 }

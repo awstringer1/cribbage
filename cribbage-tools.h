@@ -6,7 +6,10 @@
 #include <iterator>
 #include <fstream>
 #include <vector>
+#include <regex>
 #include <boost/algorithm/string.hpp>
+//#include <boost/algorithm/string_regex.hpp>
+
 
 static std::string filepath = "/Users/alexstringer/phd/projects/learn-cpp/cribbage/score-run-best-subhand.csv";
 
@@ -18,33 +21,80 @@ static char suits[4] = {'H','C','D','S'};
 // A card has a value and a suit
 class Card {
 private:
-  // Initialize
-  void set_values(char setsuit,char setvalue) {
-    // Check if values are valid
+  // Check valid values
+  void valid_values(char suit,char value) {
     bool valid_suit = false, valid_value = false;
     int i;
     for (i=0;i<13;i++) {
-      if (setvalue == values[i]) {
+      if (value == values[i]) {
         valid_value = true;
       }
     }
     for (i=0;i<4;i++) {
-      if (setsuit == suits[i]) {
+      if (suit == suits[i]) {
         valid_suit = true;
       }
     }
 
     if (!valid_suit) {
-      std::cout << "Invalid suit: " << setsuit << "\n";
+      std::cout << "Invalid suit: " << suit << "\n";
       exit(1);
     }
     if (!valid_value) {
-      std::cout << "Invalid value: " << setvalue << "\n";
+      std::cout << "Invalid value: " << value << "\n";
       exit(1);
     }
+  }
+  // Initialize
+  void set_values(char setsuit,char setvalue) {
+    // Check if values are valid
+    valid_values(setsuit,setvalue);
 
     suit = setsuit;
     value = setvalue;
+  }
+  // Can also provide a string, and set values by parsing suit and value
+  void set_values(std::string input) {
+    //std::cout << input << "\n";
+    // Regex for matching the suit and value
+    // Note that std::regex_search returns one match at a time, so the below
+    // code returns only the first match from the input for each regex (suit, value).
+    // I don't see any reason to guard against this.
+    std::smatch sm_suit, sm_value;
+    std::regex re_suit("(H|S|D|C)");
+    std::regex re_value("(0|[2-9]|A|J|Q|K)");
+    std::regex_search(input,sm_suit,re_suit);
+    std::regex_search(input,sm_value,re_value);
+
+    std::string setvalue = sm_value[0];
+    std::string setsuit = sm_suit[0];
+
+    if (sm_value.empty()) {
+      std::cout << "Parsing value from input " << input << " unsuccessful.\n";
+      exit(1);
+    }
+    if (sm_suit.empty()) {
+      std::cout << "Parsing suit from input " << input << " unsuccessful.\n";
+      exit(1);
+    }
+
+
+
+    char *setsuit_c = &setsuit[0];
+    // If the value is a 10, make it a 0
+    char *setvalue_c = &setvalue[0];
+    if (setvalue.compare(std::string ("10")) == 0) {
+      *setvalue_c = '0';
+    }
+    else {
+      setvalue_c = &setvalue[0]; // Redundant, I know.
+    }
+    // Check if values are valid
+    valid_values(*setsuit_c,*setvalue_c);
+    suit = *setsuit_c;
+    value = *setvalue_c;
+
+
   }
 public:
   char suit;
@@ -54,9 +104,13 @@ public:
   Card() {
 
   }
-  // Parametrized contructor
+  // Parametrized contructors
   Card(char setsuit,char setvalue) {
     set_values(setsuit,setvalue);
+  }
+
+  Card(std::string input) {
+    set_values(input);
   }
 
   // Get the integer value of the card
@@ -207,9 +261,13 @@ public:
     set_values_random();
   };
 
-  // Parametrized constructor
+  // Parametrized constructors
   Hand(Card card1,Card card2,Card card3,Card card4) {
     set_values_deterministic(card1,card2,card3,card4);
+  }
+
+  Hand(Card cards[]) {
+    set_values_deterministic(cards[0],cards[1],cards[2],cards[3]);
   }
 
   // Set the values of the cards, deterministically. Mostly for testing
@@ -624,7 +682,7 @@ Hand best_hand(std::vector<Card> cards) {
 // Request discard input from the user
 // Display 6 cards to the user, and ask them to discard 2
 // Return the hand containing the four remaining cards
-void request_discard(std::vector<Card> cards) {
+Hand request_discard(std::vector<Card> cards) {
   // Make sure 6 cards provided
   if (cards.size() != 6) {
     std::cout << "Please provide a std::vector containing 6 cards. Your input contained " << cards.size() << " cards.\n";
@@ -641,28 +699,58 @@ void request_discard(std::vector<Card> cards) {
   // Request input from the user
   std::string user_input;
   std::getline(std::cin,user_input);
-  std::cout << "You chose " << user_input << "\n";
 
   // Parse the input into Card objects
+  std::vector<std::string> user_input_split;
+  boost::split(user_input_split,user_input,boost::is_any_of(" "));
+  Card discard1 = Card(user_input_split[0]), discard2 = Card(user_input_split[1]);
+  std::cout << "Discarding ";
+  discard1.print(); std::cout << " and "; discard2.print();
+  std::cout << " into the crib." << std::endl;
+
+  // Return the hand after discarding
+  Card goodcards[4];
+  int k=0;
+  for (i=0;i<6;i++) {
+    if (cards[i].compare(discard1) | cards[i].compare(discard2)) {
+      continue;
+    }
+    else {
+      goodcards[k] = cards[i];
+      k++;
+    }
+  }
+
+  return Hand(goodcards);
+
 
 }
 
 // Deal. Draw 12 cards without replacement, split into two 6-card arrays; get the
 // two best four-card subhands from this; assign them to the supplied players. The
 // four discarded cards make up the crib; return these as a Hand
-Hand deal(Player *player1, Player *player2) {
+Hand deal(Player *player1, Player *player2,bool interactive = false) {
   // Draw 12 cards
   std::vector<Card> cards = draw_cards(12);
   // Split them into 2 vectors
   int i;
   std::vector<Card> player1cards, player2cards;
+  std::cout << "12 cards drawn: ";
   for (i=0;i<6;i++) {
+    cards[i].print(); std::cout << " ";
+    cards[i+6].print(); std::cout << " ";
     player1cards.push_back(cards[i]);
     player2cards.push_back(cards[i+6]);
   }
+  std::cout << std::endl;
 
   // Get the best hands, assign to players
-  player1->set_hand(best_hand(player1cards));
+  if (interactive) {
+    player1->set_hand(request_discard(player1cards));
+  }
+  else {
+    player1->set_hand(best_hand(player1cards));
+  }
   player2->set_hand(best_hand(player2cards));
 
   // for (i=0; i<6; i++) {

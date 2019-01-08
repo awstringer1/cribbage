@@ -159,6 +159,15 @@ public:
     }
   }
 
+  // Get the face label of the card as a string in the form "valuesuit". For
+  // example, the king of spades would yield "KS"
+  std::string get_label() {
+    char label[2];
+    label[0] = value;
+    label[1] = suit;
+    return std::string(label);
+  }
+
   // Print the card
   void print() {
     if (value == '0') {
@@ -245,16 +254,14 @@ public:
 // Class to represent a hand
 // A hand is an array of four cards, with some associated member methods
 class Hand {
-private:
-  // Functions for counting hands, with and without the top card
-
-
-  int count_no_topcard() {
-    return 0;
-  }
 
 public:
+
+  // Make a static-sized array of length 4 which contains the actual scoring hand
   Card cards[4];
+  // Also allow for a dynamic sized container (vector) for dealing with temporary discarding,
+  // in the pegging phase
+  std::vector<Card> tmpcards;
 
   // Default constructor
   Hand() {
@@ -276,6 +283,11 @@ public:
     cards[1] = card2;
     cards[2] = card3;
     cards[3] = card4;
+
+    // Also set the tmpcards
+    for (int i=0; i<4; i++) {
+      tmpcards.push_back(cards[i]);
+    }
   }
 
   // Randomly draw a new card
@@ -296,6 +308,7 @@ public:
     int i;
     for (i=0;i<4;i++) {
       cards[i] = random_card();
+      tmpcards.push_back(cards[i]);
     }
 
     // Now check the pairs to make sure they aren't equal
@@ -346,6 +359,16 @@ public:
     int i;
     for (i=0;i<4;i++) {
       cards[i].print();
+      std::cout << " ";
+    }
+    std::cout << "\n";
+  }
+
+  // Print out what is currently stored in tmpcards
+  void printtmp() {
+    int i;
+    for (i=0;i< (int) tmpcards.size();i++) {
+      tmpcards[i].print();
       std::cout << " ";
     }
     std::cout << "\n";
@@ -606,20 +629,85 @@ public:
 class Player {
 private:
   Hand currenthand;
-public:
   int score = 0;
+public:
 
   void set_hand(Hand thehand) {
     currenthand = thehand;
   }
 
+  // Return the original hand dealt
   Hand get_hand() {
     return currenthand;
+  }
+
+  // Return the cards currently in the hand
+  std::vector<Card> get_current_cards() {
+    return currenthand.tmpcards;
+  }
+
+  // Print the cards currently in the hand
+  void print_current_cards() {
+    std::vector<Card> currentcards = get_current_cards();
+    for (int i=0; i < (int) currenthand.tmpcards.size(); i++) {
+      currentcards[i].print();
+      std::cout << " ";
+    }
+    std::cout << std::endl;
+  }
+
+
+
+  // Pop a card from the hand
+  Card pop_card_base(Card cardtopop) {
+
+    // Find the card in the hand
+    bool foundit = false;
+    int i = 0;
+    while (!foundit) {
+      if (currenthand.tmpcards[i].compare(cardtopop)) {
+        foundit = true;
+        currenthand.tmpcards.erase(currenthand.tmpcards.begin() + i);
+      }
+      i++;
+    }
+    return cardtopop;
+  }
+
+  Card pop_card(std::string input) {
+    return pop_card_base(Card(input));
+  }
+
+  Card pop_card(Card input) {
+    return pop_card_base(input);
+  }
+
+  // Play a card
+  Card play_card(bool interactive) {
+    if (interactive) {
+      std::string cardtoplay;
+      std::cout << "Please choose a card from your hand to play: ";
+      std::getline(std::cin,cardtoplay);
+      std::cout << std::endl;
+
+      return pop_card(cardtoplay);
+    }
+    else {
+      // If not interactive, just randomly choose a card from the hand for now
+      int n = rand() % (int) currenthand.tmpcards.size();
+      return pop_card(currenthand.tmpcards[n]);
+    }
+  }
+
+  // Increment score
+  void increment_score(int n) {
+    score += n;
   }
 
   // Is the current player the dealer?
   bool is_dealer = false;
 };
+
 
 
 // Draw any number of cards, without replacement
@@ -682,6 +770,7 @@ Hand best_hand(std::vector<Card> cards) {
 // Request discard input from the user
 // Display 6 cards to the user, and ask them to discard 2
 // Return the hand containing the four remaining cards
+
 Hand request_discard(std::vector<Card> cards) {
   // Make sure 6 cards provided
   if (cards.size() != 6) {
@@ -783,6 +872,53 @@ Hand deal(Player *player1, Player *player2,bool interactive = false) {
   }
 
   return Hand(thecrib[0],thecrib[1],thecrib[2],thecrib[3]);
+}
+
+// Pegging phase
+void pegging_phase(Player *player1,Player *player2,bool interactive=false) {
+  // The pone (player who is not the dealer) goes first
+  // Put down a card, check <= 31, check for points
+
+  // Pointer to the current player
+  Player* currentplayer = player1;
+  bool player1_iscurrent = true;
+  if (player1->is_dealer) {
+    currentplayer = player2;
+    player1_iscurrent = false;
+  }
+
+  // Pegging goes on while both players still have cards
+  bool stillpegging = true;
+  // Card in play
+  Card cardinplay;
+  bool validplay;
+
+
+  while (stillpegging) {
+    // Drop a card
+    validplay = false;
+    while (!validplay) {
+      // Player 1 is the player, player 2 is the computer
+      // So do interactive only if it's a human playing- i.e. it's player 1,
+      // and interactive is selected from the command line
+      currentplayer->play_card(interactive & player1_iscurrent);
+    }
+
+    // Check if it's a valid play
+
+   // Check for scoring
+
+   // Check if the current count needs to be reset
+
+   // Change the current player
+   if (player1_iscurrent) {
+     currentplayer = player2;
+   }
+   else {
+     currentplayer = player1;
+   }
+   player1_iscurrent = !player1_iscurrent;
+  }
 }
 
 /* The old main() function from testing

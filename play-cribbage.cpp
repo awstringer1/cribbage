@@ -24,11 +24,10 @@ int main() {
   // Create the players
   Player player1, player2;
 
-  Hand thecrib = deal(&player1,&player2,false);
+  Hand thecrib = deal(&player1,&player2,true);
   std::cout << "Player 1 hand: ";
   player1.get_hand().print();
-  std::cout << "Player 2 hand: ";
-  player2.get_hand().print();
-  std::cout << "The crib: ";
-  thecrib.print();
+  player1.play_card(true);
+  player1.print_current_cards();
+
 }

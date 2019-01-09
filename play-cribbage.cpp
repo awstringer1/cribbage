@@ -27,7 +27,7 @@ int main() {
   Hand thecrib = deal(&player1,&player2,true);
   std::cout << "Player 1 hand: ";
   player1.get_hand().print();
-  player1.play_card(true);
-  player1.print_current_cards();
+  std::cout << "Beginning pegging phase" << std::endl;
+  pegging_phase(&player1,&player2,true);
 
 }

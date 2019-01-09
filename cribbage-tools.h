@@ -407,6 +407,23 @@ public:
       madeswap = false;
     }
   }
+  // Make one that can take a vector
+  static void bubble_sort(std::vector<Card> cards) {
+    int n = cards.size();
+    bool sorted = false, madeswap = false;
+    int i;
+    while (!sorted) {
+      for (i=0;i<(n-1);i++) {
+        if (cards[i].order_by_value(cards[i+1]) == 1) {
+          // Swap them
+          swap(&cards[i],&cards[i+1]);
+          madeswap = true;
+        }
+      }
+      sorted = !madeswap;
+      madeswap = false;
+    }
+  }
 
   // Count the hand. Two options: provide a top card, or don't.
   //
@@ -881,9 +898,13 @@ void pegging_phase(Player *player1,Player *player2,bool interactive=false) {
 
   // Pointer to the current player
   Player* currentplayer = player1;
+  Player* otherplayer = player2;
+  // Player 1 is the user, so they're special- keep track of whether they are
+  // the current player
   bool player1_iscurrent = true;
   if (player1->is_dealer) {
     currentplayer = player2;
+    otherplayer = player1;
     player1_iscurrent = false;
   }
 
@@ -891,34 +912,168 @@ void pegging_phase(Player *player1,Player *player2,bool interactive=false) {
   bool stillpegging = true;
   // Card in play
   Card cardinplay;
-  bool validplay;
+  bool validplay, anyvalidplays, alternate_anyvalidplays;
+
+  // Cards that have currently been played
+  std::vector<Card> currentlyplayed, subcurrentlyplayed;
+  // ...and their sum
+  int currentsum = 0;
+  // Cards in the current player's hand
+  std::vector<Card> current_players_cards;
+
+  // Placeholder for current number of cards played, and iteration variables
+  int ncards = 0, i = 0;
+  bool stillrun;
 
 
   while (stillpegging) {
-    // Drop a card
-    validplay = false;
-    while (!validplay) {
-      // Player 1 is the player, player 2 is the computer
-      // So do interactive only if it's a human playing- i.e. it's player 1,
-      // and interactive is selected from the command line
-      currentplayer->play_card(interactive & player1_iscurrent);
+    // First, check if the current player has any playable cards
+    anyvalidplays = false;
+    current_players_cards = currentplayer->get_current_cards();
+    for (int i = 0; i < (int) current_players_cards.size(); i++) {
+      if (currentsum + current_players_cards[i].int_value() <= 31) {
+        anyvalidplays = true;
+        break;
+      }
     }
 
-    // Check if it's a valid play
+    // If the current player has a valid play possible, play it
+    if (anyvalidplays) {
+      // Drop a card
+      validplay = false;
+      while (!validplay) {
+        // Player 1 is the player, player 2 is the computer
+        // So do interactive only if it's a human playing- i.e. it's player 1,
+        // and interactive is selected from the command line
+        cardinplay = currentplayer->play_card(interactive & player1_iscurrent);
+        // Check if it's a valid play
+        if (cardinplay.int_value() + currentsum <= 31) {
+          validplay = true;
+          if (interactive) {
+            std::cout << "Played ";
+            cardinplay.print();
+            std::cout << std::endl;
+          }
+        }
+        else if (interactive) {
+          // If not interactive, just repeat the loop silently. This won't cause
+          // an infinite loop, since at this point in the control flow we know
+          // that there exists a valid play.
+          // If interactive, print a diagnostic message
+          std::cout << "The cards currently in play have total value " << currentsum << ". ";
+          std::cout << "The card you tried to play has a value of " << cardinplay.int_value() << ".\n";
+          std::cout << "Please play a card whose value would keep the total value of cards played to 31 or under.\n";
+        }
+      }
+      // It's a valid play, so increment the current sum and push the played card onto the stack
+      currentsum += cardinplay.int_value();
+      currentlyplayed.push_back(cardinplay);
+      /*
+        Check for scoring:
+        - 15's
+        - 31's
+        - Runs of 3
+        - Pairs, three of a kind, four of a kind
+        - Pass, last card
+      */
+      // 15's
+      if (currentsum == 15) {
+        currentplayer->increment_score(2);
+      }
+      // 31's
+      if (currentsum == 31) {
+        currentplayer->increment_score(1);
+      }
 
-   // Check for scoring
+      ncards = (int) currentlyplayed.size();
 
-   // Check if the current count needs to be reset
+      // Pairs
+      if (ncards > 1) {
+        if (currentlyplayed[ncards-1].compare(currentlyplayed[ncards-2])) {
+          currentplayer->increment_score(2);
+        }
+      }
+      // Three of a kind
+      if (ncards > 2) {
+        if (currentlyplayed[ncards-1].compare(currentlyplayed[ncards-2]) &
+            currentlyplayed[ncards-1].compare(currentlyplayed[ncards-3])) {
+          currentplayer->increment_score(6);
+        }
+      }
+      // Four of a kind
+      if (ncards > 3) {
+        if (currentlyplayed[ncards-1].compare(currentlyplayed[ncards-2]) &
+            currentlyplayed[ncards-1].compare(currentlyplayed[ncards-3]) &
+            currentlyplayed[ncards-1].compare(currentlyplayed[ncards-4])) {
+          currentplayer->increment_score(12);
+        }
+      }
+      // Runs of three
+      // Annoyingly, have to check all possible orderings. So just sort them and then check
+      subcurrentlyplayed = currentlyplayed;
+      if (ncards > 2) {
+        Hand::bubble_sort(subcurrentlyplayed);
+        // Have to check runs of all lengths. First check for a run of 3
+        i = 0;
+        stillrun = false;
+        if (subcurrentlyplayed[ncards-3].adjacent_and_less_than(subcurrentlyplayed[ncards-2]) &
+            subcurrentlyplayed[ncards-2].adjacent_and_less_than(subcurrentlyplayed[ncards-1])) {
+              // We have a run of 3
+              i = 3;
+              stillrun = true;
+            }
+        while (stillrun) {
+          // If we had a run of 3 above, check to see if it's actually longer
+          if (i > ncards-1) {
+            break;
+          }
+          if (subcurrentlyplayed[ncards-i].adjacent_and_less_than(subcurrentlyplayed[ncards-(i-1)])) {
+            i++;
+          }
+          else {
+            stillrun = false;
+          }
+        }
+        currentplayer->increment_score(i);
+      }
+    }
+    else {
+      // If not, current player passes. Reset the current count and currently played cards. Also increment other player's score
+      currentsum = 0;
+      ncards = 0;
+      currentlyplayed.erase(currentlyplayed.begin(),currentlyplayed.end());
+      otherplayer->increment_score(1);
+    }
 
    // Change the current player
    if (player1_iscurrent) {
      currentplayer = player2;
+     otherplayer = player1;
    }
    else {
      currentplayer = player1;
+     otherplayer = player2;
    }
    player1_iscurrent = !player1_iscurrent;
   }
+
+  // Now, if the original current player had no valid plays, check if the new one does. If not,
+  // end pegging. Remember, "currentplayer" now points to the other player
+  if (!anyvalidplays) {
+    alternate_anyvalidplays = false;
+    current_players_cards = currentplayer->get_current_cards();
+    for (int i = 0; i < (int) current_players_cards.size(); i++) {
+      if (currentsum + current_players_cards[i].int_value() <= 31) {
+        alternate_anyvalidplays = true;
+        break;
+      }
+    }
+    if (!alternate_anyvalidplays) {
+      stillpegging = false;
+      currentplayer -> increment_score(1);
+    }
+  }
+
 }
 
 /* The old main() function from testing
